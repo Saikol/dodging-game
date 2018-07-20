@@ -6,6 +6,7 @@ from random import randint, choice
 def play():
     global drops
     global powerups
+    global score
     drops = []
     powerups = []
     is_playing = True
@@ -13,10 +14,11 @@ def play():
     times = 0
     score = 0
     move_dir = ''
-    heart = pg.transform.scale(pg.image.load('Heart.png'), (50, 50))
+    fire = pg.transform.scale(pg.image.load('fire.png'), (15, 15))
+    sfire = pg.transform.scale(pg.image.load('shield_fire.png'), (15, 15))
     shield = pg.transform.scale(pg.image.load('Shield.png'), (player.size, player.size // 3))
-    shield2 = pg.transform.scale(pg.image.load('Shield.png'), (int(player.size * 1.5), player.size // 2))
-    shield3 = pg.transform.scale(pg.image.load('Shield.png'), (player.size * 2, player.size))
+    shield2 = pg.transform.scale(pg.image.load('Shield.png'), (int(player.size * 1.5), player.size // 3))
+    shield3 = pg.transform.scale(pg.image.load('Shield.png'), (player.size * 2, player.size // 2))
     timer = 0
     while player.lives > 0:
         screen.blit(bg, (0, 0))
@@ -45,9 +47,6 @@ def play():
             powerups.append(PowerUp(randint(0, field_size[0] - 25), -25, 25, choice(ptypes)))
         if is_playing:
             player.draw()
-            screen.blit(heart, (10, 10))
-            screen.blit(font.render(' X ' + str(player.lives), False, (0, 0, 0)), (60, 20))
-            screen.blit(font.render('score:' + str(score), False, (0, 0, 0)), (10, 100))
             if player.shields > 0:
                 screen.blit(shield, (player.x, player.y))
             if player.shields > 1:
@@ -63,7 +62,7 @@ def play():
                     if i.check_for_collisions(player):
                         if player.shields:
                             player.shields -= 1
-                            score += 60 - int(timer_limit)
+                            score += (60 - int(timer_limit)) * 2
                             player.lives += 1
                     i.draw()
                 else:
@@ -73,6 +72,16 @@ def play():
                 i.check_for_floor()
                 i.check_for_collisions(player)
                 i.draw()
+            x_pos = 5
+            for i in range(player.lives):
+                screen.blit(fire, (x_pos, field_size[1] - 20))
+                x_pos += 20
+            x_pos = 5
+            for i in range(player.shields):
+                screen.blit(sfire, (x_pos, field_size[1] - 45))
+                x_pos += 20
+            screen.blit(font.render(str(score), True, (255, 255, 255)),
+                        (field_size[0] // 2 - len(str(score)) * 20, 10))
             pg.display.flip()
             clk.tick(FPS)
             timer += 1
@@ -95,19 +104,22 @@ class PowerUp:
 
     def delete(self):
         powerups.remove(self)
-        powerups.sort()
 
     def check_for_floor(self):
         if self.y >= field_size[1]:
             self.delete()
 
     def check_for_collisions(self, other):
+        global score
         if detect_collisions(self.x, self.y, self.rect[2], self.rect[3], other.x, other.y, other.rect[2],
                              other.rect[3]):
             if self.type == 'life':
                 other.lives += 1
-            elif self.type == 'shield' and other.shields < 3:
-                other.shields += 1
+            elif self.type == 'shield':
+                if other.shields < 3:
+                    other.shields += 1
+                else:
+                    score += 250
             self.delete()
 
     def move(self):
@@ -140,7 +152,6 @@ class Drop:
 
     def delete(self):
         drops.remove(self)
-        drops.sort()
 
     def check_for_floor(self):
         if self.y >= field_size[1]:
@@ -168,7 +179,7 @@ class Player:
         self.raw = pg.image.load('Player.png')
         self.look_dir = 0
         self.lives = 3
-        self.shields = 3
+        self.shields = 1
         self.vel = 0
         for i in range(3):
             surf = pg.Surface((92, 98))
@@ -211,11 +222,14 @@ class Player:
 
 pg.init()
 
+heart = pg.transform.scale(pg.image.load('Heart.png'), (50, 50))
 bg = pg.image.load('bg.png')
 field_size = bg.get_rect()[2:]
 screen = pg.display.set_mode(field_size)
+pg.display.set_caption('Lava dodge')
+pg.display.set_icon(heart)
 clk = pg.time.Clock()
-font = pg.font.SysFont('Quicksand-Bold.otf', 50, False, False)
+font = pg.font.SysFont('Quicksand-Bold.otf', 80, True, False)
 FPS = 50
 
 move_dir = ''
