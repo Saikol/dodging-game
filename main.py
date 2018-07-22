@@ -4,27 +4,32 @@ from collisions import detect_collisions
 from random import randint, choice
 
 
-def play():
+def play(multiplayer=False):
     global highscore
     global drops
     global powerups
     global score
-    player.lives = 3
-    player.shields = 1
+    player2 = Player(field_size[0] - plr_s, field_size[1] - plr_s, plr_s, 2)
+    if multiplayer:
+        player1.x = 0
+    player1.lives = 3
+    player1.shields = 1
     drops = []
     powerups = []
     is_playing = True
     timer_limit = 50
     times = 0
     score = 0
-    move_dir = ''
+    move_dir1 = ''
+    move_dir2 = ''
     fire = pg.transform.scale(pg.image.load('resources/fire.png'), (15, 15))
     sfire = pg.transform.scale(pg.image.load('resources/shield_fire.png'), (15, 15))
-    shield = pg.transform.scale(pg.image.load('resources/Shield.png'), (player.size, player.size // 3))
-    shield2 = pg.transform.scale(pg.image.load('resources/Shield.png'), (int(player.size * 1.5), player.size // 3))
-    shield3 = pg.transform.scale(pg.image.load('resources/Shield.png'), (player.size * 2, player.size // 3))
+    shield = pg.transform.scale(pg.image.load('resources/Shield.png'), (player1.size, player1.size // 3))
+    shield2 = pg.transform.scale(pg.image.load('resources/Shield.png'), (int(player1.size * 1.5), player1.size // 3))
+    shield3 = pg.transform.scale(pg.image.load('resources/Shield.png'), (player1.size * 2, player1.size // 3))
     timer = 0
-    while player.lives > 0:
+    multiplayer = multiplayer
+    while player1.lives > 0 and player2.lives > 0:
         screen.blit(bg, (0, 0))
         for event in pg.event.get():
             if event.type == pg.QUIT:
@@ -34,15 +39,20 @@ def play():
                 quit()
             elif event.type == pg.KEYDOWN:
                 if event.key == pg.K_LEFT:
-                    move_dir = 'l'
+                    move_dir1 = 'l'
                 elif event.key == pg.K_RIGHT:
-                    move_dir = 'r'
+                    move_dir1 = 'r'
                 elif event.key == pg.K_DOWN:
-                    move_dir = ''
-                elif event.key == pg.K_UP:
-                    player.jump(15)
+                    move_dir1 = ''
                 elif event.key == pg.K_SPACE:
                     is_playing = not is_playing
+                if multiplayer:
+                    if event.key == pg.K_a:
+                        move_dir2 = 'l'
+                    elif event.key == pg.K_d:
+                        move_dir2 = 'r'
+                    elif event.key == pg.K_s:
+                        move_dir2 = ''
         if timer > int(timer_limit):
             timer = 0
             drops.append(Drop(randint(0, field_size[0] - 50), 0, 50))
@@ -53,40 +63,67 @@ def play():
             times = 0
             powerups.append(PowerUp(randint(0, field_size[0] - 25), -25, 25, choice(ptypes)))
         if is_playing:
-            player.draw()
-            if player.shields > 0:
-                screen.blit(shield, (player.x, player.y))
-            if player.shields > 1:
-                screen.blit(shield2, (player.x - player.size // 4, player.y - player.size // 10))
-            if player.shields > 2:
-                screen.blit(shield3, (player.x - player.size // 2, player.y - player.size // 5))
-            player.move(move_dir, 8)
+            player1.draw()
+            if player1.shields > 0:
+                screen.blit(shield, (player1.x, player1.y))
+            if player1.shields > 1:
+                screen.blit(shield2, (player1.x - player1.size // 4, player1.y - player1.size // 10))
+            if player1.shields > 2:
+                screen.blit(shield3, (player1.x - player1.size // 2, player1.y - player1.size // 5))
+            if multiplayer:
+                player2.draw()
+                if player2.shields > 0:
+                    screen.blit(shield, (player2.x, player2.y))
+                if player2.shields > 1:
+                    screen.blit(shield2, (player2.x - player2.size // 4, player2.y - player2.size // 10))
+                if player2.shields > 2:
+                    screen.blit(shield3, (player2.x - player2.size // 2, player2.y - player2.size // 5))
+            player1.move(move_dir1, 8)
+            if multiplayer:
+                player2.move(move_dir2, 8)
             for i in drops:
                 if i.anim_prog > 9:
                     i.move()
                     if i.check_for_floor():
-                        score += int(60 - timer_limit)
-                    if i.check_for_collisions(player):
-                        if player.shields:
-                            player.shields -= 1
-                            score += (60 - int(timer_limit)) * 2
-                            player.lives += 1
+                        score += int(60 - timer_limit) * (int(multiplayer) + 1)
+                    if i.check_for_collisions(player1):
+                        if player1.shields:
+                            player1.shields -= 1
+                            score += (60 - int(timer_limit)) * 2 * (int(multiplayer) + 1)
+                            player1.lives += 1
+                    elif multiplayer:
+                        if i.check_for_collisions(player2):
+                            if player2.shields:
+                                player2.shields -= 1
+                                score += (60 - int(timer_limit)) * 2 * (int(multiplayer) + 1)
+                                player2.lives += 1
                     i.draw()
                 else:
                     i.animation()
             for i in powerups:
                 i.move()
                 i.check_for_floor()
-                i.check_for_collisions(player)
+                i.check_for_collisions(player1)
+                if multiplayer:
+                    i.check_for_collisions(player2)
                 i.draw()
             x_pos = 5
-            for i in range(player.lives):
+            for i in range(player1.lives):
                 screen.blit(fire, (x_pos, field_size[1] - 20))
                 x_pos += 17
             x_pos = 5
-            for i in range(player.shields):
+            for i in range(player1.shields):
                 screen.blit(sfire, (x_pos, field_size[1] - 45))
                 x_pos += 17
+            if multiplayer:
+                x_pos = field_size[0] - 20
+                for i in range(player2.lives):
+                    screen.blit(fire, (x_pos, field_size[1] - 20))
+                    x_pos -= 17
+                x_pos = field_size[0] - 20
+                for i in range(player2.shields):
+                    screen.blit(sfire, (x_pos, field_size[1] - 45))
+                    x_pos -= 17
             score_rect = font.render(str(score), True, (255, 255, 255)).get_rect()
             score_rect.centerx = field_size[0] // 2
             score_rect.y = 10
@@ -114,7 +151,8 @@ class PowerUp:
         screen.blit(self.pic, (self.x, self.y))
 
     def delete(self):
-        powerups.remove(self)
+        if self in powerups:
+            powerups.remove(self)
 
     def check_for_floor(self):
         if self.y >= field_size[1]:
@@ -188,12 +226,12 @@ class Drop:
 
 
 class Player:
-    def __init__(self, x, y, size):
+    def __init__(self, x, y, size, pic):
         self.pics = []
         self.size = size
         self.x = x
         self.y = y
-        self.raw = pg.image.load('resources/Player.png')
+        self.raw = pg.image.load('resources/Player1.png') if pic == 1 else pg.image.load('resources/Player2.png')
         self.look_dir = 0
         self.lives = 3
         self.shields = 1
@@ -206,14 +244,9 @@ class Player:
             surf = pg.transform.scale(surf, (size, size))
             self.pics.append(surf)
         self.rect = self.pics[0].get_rect()
-        self.jumppower = 0
 
     def draw(self):
         screen.blit(self.pics[self.look_dir], (self.x, self.y))
-
-    def jump(self, power):
-        self.vel = power
-        self.jumppower = power
 
     def move(self, dir, speed):
         if dir == 'r':
@@ -232,9 +265,6 @@ class Player:
                 self.look_dir = 1
         else:
             self.look_dir = 0
-        if self.vel < self.jumppower:
-            self.y -= self.vel
-            self.vel -= 1
 
 
 pg.init()
@@ -264,7 +294,6 @@ clk = pg.time.Clock()
 font = pg.font.SysFont('resources/Quicksand-Bold.otf', 80, True, False)
 
 FPS = 50
-move_dir = ''
 plr_s = 100
 y_speed = 0
 
@@ -272,10 +301,10 @@ tmp = open('highscore', 'r')
 highscore = int(tmp.readline())
 tmp.close()
 
-player = Player(bg.get_rect()[3] // 2 - plr_s // 2, bg.get_rect()[3] - plr_s, plr_s)
+player1 = Player(bg.get_rect()[3] // 2 - plr_s // 2, bg.get_rect()[3] - plr_s, plr_s, 1)
 ptypes = ['shield', 'life']
-buttons = [Button(screen, 'PLAY'), Button(screen, 'QUIT')]
 screenshots_rect.centerx = field_centerx
+buttons = [Button(screen, 'PLAY(single)'), Button(screen, 'PLAY(multi)'), Button(screen, 'QUIT')]
 screenshots_rect.y = field_centery
 current_screenshot = choice(screenshots)
 while True:
@@ -287,7 +316,7 @@ while True:
         else:
             i.draw(randint(field_centerx - 1, field_centerx + 1), randint(y_pos - 1, y_pos + 1), (255, 255, 255))
         y_pos += 55
-    y_pos -= 15
+    y_pos -= 25
     crown_rect.y = y_pos
     screen.blit(crown, crown_rect)
     y_pos += 65
@@ -296,6 +325,8 @@ while True:
     txt_rect.centerx = field_centerx
     txt_rect.y = y_pos
     screen.blit(txt, txt_rect)
+    y_pos += 50
+    screenshots_rect.y = y_pos
     screen.blit(current_screenshot, screenshots_rect)
 
     for event in pg.event.get():
@@ -310,8 +341,11 @@ while True:
                     if i.is_touching_mouse():
                         if i.text == 'QUIT':
                             quit()
-                        elif i.text == 'PLAY':
+                        elif i.text == 'PLAY(single)':
                             play()
+                            current_screenshot = choice(screenshots)
+                        elif i.text == 'PLAY(multi)':
+                            play(True)
                             current_screenshot = choice(screenshots)
 
     pg.display.flip()
