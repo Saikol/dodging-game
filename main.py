@@ -4,6 +4,11 @@ from collisions import detect_collisions
 from random import randint, choice
 
 
+def draw_pause():
+    pg.draw.rect(screen, (255, 255, 255), [10, 10, 10, 20])
+    pg.draw.rect(screen, (255, 255, 255), [30, 10, 10, 20])
+
+
 def play(multiplayer=False):
     global highscore
     global drops
@@ -27,10 +32,15 @@ def play(multiplayer=False):
     shield = pg.transform.scale(pg.image.load('resources/Shield.png'), (player1.size, player1.size // 3))
     shield2 = pg.transform.scale(pg.image.load('resources/Shield.png'), (int(player1.size * 1.5), player1.size // 3))
     shield3 = pg.transform.scale(pg.image.load('resources/Shield.png'), (player1.size * 2, player1.size // 3))
+    bg_front = pg.image.load('resources/bg front.png')
     timer = 0
     multiplayer = multiplayer
+    bgs[0].rect.y = -bgs[0].rect.height // 2
     while player1.lives > 0 and player2.lives > 0:
-        screen.blit(bg, (0, 0))
+        for i in bgs:
+            i.move()
+            i.draw()
+        screen.blit(bg_front, (0, 0))
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 tmp = open('highscore', 'w')
@@ -46,6 +56,7 @@ def play(multiplayer=False):
                     move_dir1 = ''
                 elif event.key == pg.K_SPACE:
                     is_playing = not is_playing
+
                 if multiplayer:
                     if event.key == pg.K_a:
                         move_dir2 = 'l'
@@ -134,6 +145,27 @@ def play(multiplayer=False):
             timer += 1
             if score > highscore:
                 highscore = score
+        if not is_playing:
+            screen.fill((0, 0, 0))
+            draw_pause()
+            pg.display.flip()
+
+
+class Background:
+    def __init__(self):
+        self.pic = pg.image.load('resources/bg back.png')
+        self.rect = self.pic.get_rect()
+        self.rect.y = -self.rect.height
+
+    def draw(self):
+        screen.blit(self.pic, self.rect)
+
+    def move(self):
+        self.rect.y += 1
+        if self.rect.y == 0:
+            bgs.append(Background())
+        if self.rect.y == field_size[1]:
+            bgs.remove(self)
 
 
 class PowerUp:
@@ -275,6 +307,7 @@ crown = pg.image.load('resources/crown.png')
 screenshots = [pg.image.load('screenshots/1.png'), pg.image.load('screenshots/2.png'),
                pg.image.load('screenshots/3.png'), pg.image.load('screenshots/4.png'),
                pg.image.load('screenshots/5.png'), pg.image.load('screenshots/6.png')]
+bgs = [Background()]
 screenshots_rect = screenshots[0].get_rect()
 for i in range(len(screenshots)):
     screenshots.append(pg.transform.scale(screenshots[i], (150, 150)))
