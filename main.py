@@ -4,6 +4,19 @@ from collisions import detect_collisions
 from random import randint, choice
 
 
+def safe_quit():
+    tmp = open('highscore', 'w')
+    tmp.write(str(highscore))
+    tmp.close()
+    tmp = open('UpgradeInfo', 'w')
+    tmp.write(str(coins) + '\n')
+    tmp.write(str(speed) + '\n')
+    tmp.write(str(shields) + '\n')
+    tmp.write(str(life) + '\n')
+    tmp.close()
+    quit()
+
+
 def draw_pause():
     pg.draw.rect(screen, (255, 255, 255), [10, 10, 10, 20])
     pg.draw.rect(screen, (255, 255, 255), [30, 10, 10, 20])
@@ -29,9 +42,6 @@ def play(multiplayer=False):
     move_dir2 = ''
     fire = pg.transform.scale(pg.image.load('resources/fire.png'), (15, 15))
     sfire = pg.transform.scale(pg.image.load('resources/shield_fire.png'), (15, 15))
-    shield = pg.transform.scale(pg.image.load('resources/Shield.png'), (player1.size, player1.size // 3))
-    shield2 = pg.transform.scale(pg.image.load('resources/Shield.png'), (int(player1.size * 1.5), player1.size // 3))
-    shield3 = pg.transform.scale(pg.image.load('resources/Shield.png'), (player1.size * 2, player1.size // 3))
     bg_front = pg.image.load('resources/bg front.png')
     timer = 0
     multiplayer = multiplayer
@@ -43,10 +53,7 @@ def play(multiplayer=False):
         screen.blit(bg_front, (0, 0))
         for event in pg.event.get():
             if event.type == pg.QUIT:
-                tmp = open('highscore', 'w')
-                tmp.write(str(highscore))
-                tmp.close()
-                quit()
+                safe_quit()
             elif event.type == pg.KEYDOWN:
                 if event.key == pg.K_LEFT:
                     move_dir1 = 'l'
@@ -64,6 +71,10 @@ def play(multiplayer=False):
                         move_dir2 = 'r'
                     elif event.key == pg.K_s:
                         move_dir2 = ''
+            elif event.type == pg.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    if quit_button.is_touching_mouse():
+                        player1.lives = 0
         if timer > int(timer_limit):
             timer = 0
             drops.append(Drop(randint(0, field_size[0] - 50), 0, 50))
@@ -75,20 +86,16 @@ def play(multiplayer=False):
             powerups.append(PowerUp(randint(0, field_size[0] - 25), -25, 25, choice(ptypes)))
         if is_playing:
             player1.draw()
-            if player1.shields > 0:
-                screen.blit(shield, (player1.x, player1.y))
-            if player1.shields > 1:
-                screen.blit(shield2, (player1.x - player1.size // 4, player1.y - player1.size // 10))
-            if player1.shields > 2:
-                screen.blit(shield3, (player1.x - player1.size // 2, player1.y - player1.size // 5))
+            for i in range(player1.shields):
+                shield = pg.transform.scale(pg.image.load('resources/Shield.png'),
+                                            (player1.size + i * 2, player1.size + i * 2))
+                screen.blit(shield, (player1.x - i * 2, player1.y - i * 2))
             if multiplayer:
                 player2.draw()
-                if player2.shields > 0:
-                    screen.blit(shield, (player2.x, player2.y))
-                if player2.shields > 1:
-                    screen.blit(shield2, (player2.x - player2.size // 4, player2.y - player2.size // 10))
-                if player2.shields > 2:
-                    screen.blit(shield3, (player2.x - player2.size // 2, player2.y - player2.size // 5))
+                for i in range(player2.shields):
+                    shield = pg.transform.scale(pg.image.load('resources/Shield.png'),
+                                                (player2.size + i * 6, player2.size + i * 6))
+                    screen.blit(shield, (player2.x - i * 3, player2.y - i * 3))
             player1.move(move_dir1, 8)
             if multiplayer:
                 player2.move(move_dir2, 8)
@@ -147,6 +154,12 @@ def play(multiplayer=False):
                 highscore = score
         if not is_playing:
             screen.fill((0, 0, 0))
+            if quit_button.is_touching_mouse():
+                quit_button.draw(randint(field_centerx - 5, field_centerx + 5),
+                                 randint(field_centery - 5, field_centery + 5), (255, 0, 0))
+            else:
+                quit_button.draw(randint(field_centerx - 1, field_centerx + 1),
+                                 randint(field_centery - 1, field_centery + 1), (255, 255, 255))
             draw_pause()
             pg.display.flip()
 
@@ -192,13 +205,15 @@ class PowerUp:
 
     def check_for_collisions(self, other):
         global score
+        global life
+        global shields
         if detect_collisions(self.x, self.y, self.rect[2], self.rect[3], other.x, other.y, other.rect[2],
                              other.rect[3]):
             if self.type == 'life':
-                if other.lives < 10:
+                if other.lives < 10 + life:
                     other.lives += 1
                 else:
-                    if other.shields < 3:
+                    if other.shields < 3 + shields:
                         other.shields += 1
                     else:
                         score += 150
@@ -301,9 +316,11 @@ class Player:
 
 pg.init()
 
-heart = pg.transform.scale(pg.image.load('resources/Heart.png'), (50, 50))
+heart = pg.image.load('resources/Heart.png')
 bg = pg.image.load('resources/bg.png')
+upgrades_bg = pg.image.load('resources/upgrades bg.png')
 crown = pg.image.load('resources/crown.png')
+coin = pg.transform.scale(pg.image.load('resources/coin.png'), (25, 37))
 screenshots = [pg.image.load('screenshots/1.png'), pg.image.load('screenshots/2.png'),
                pg.image.load('screenshots/3.png'), pg.image.load('screenshots/4.png'),
                pg.image.load('screenshots/5.png'), pg.image.load('screenshots/6.png')]
@@ -314,7 +331,7 @@ for i in range(len(screenshots)):
     del screenshots[0]
 screenshots_rect = screenshots[0].get_rect()
 
-field_size = bg.get_rect()[2:]
+field_size = bg.get_size()
 field_centerx = field_size[0] // 2
 field_centery = field_size[1] // 2
 crown_rect = crown.get_rect()
@@ -325,6 +342,7 @@ pg.display.set_caption('Lava dodge')
 pg.display.set_icon(heart)
 clk = pg.time.Clock()
 font = pg.font.SysFont('resources/Quicksand-Bold.otf', 80, True, False)
+font2 = pg.font.SysFont('resources/Quicksand-Bold.otf', 30, False, False)
 
 FPS = 50
 plr_s = 100
@@ -333,52 +351,105 @@ y_speed = 0
 tmp = open('highscore', 'r')
 highscore = int(tmp.readline())
 tmp.close()
+tmp = open('UpgradeInfo', 'r')
+coins = int(tmp.readline())
+speed = int(tmp.readline())
+shields = int(tmp.readline())
+life = int(tmp.readline())
+tmp.close()
 
+quit_button = Button(screen, 'quit')
 player1 = Player(bg.get_rect()[3] // 2 - plr_s // 2, bg.get_rect()[3] - plr_s, plr_s, 1)
 ptypes = ['shield', 'life']
 screenshots_rect.centerx = field_centerx
-buttons = [Button(screen, 'PLAY(single)'), Button(screen, 'PLAY(multi)'), Button(screen, 'QUIT')]
+menu_buttons = [Button(screen, 'PLAY(single)'), Button(screen, 'PLAY(multi)'), Button(screen, 'UPGRADES'),
+                Button(screen, 'QUIT')]
+upgrade_menu_buttons = [Button(screen, '<back'), Button(screen, 'SPEED'), Button(screen, 'SHIELDS'),
+                        Button(screen, 'LIFE')]
 screenshots_rect.y = field_centery
 current_screenshot = choice(screenshots)
+curr_menu = 'main'
+
 while True:
-    screen.blit(bg, (0, 0))
-    y_pos = 20
-    for i in buttons:
-        if i.is_touching_mouse():
-            i.draw(randint(field_centerx - 3, field_centerx + 3), randint(y_pos - 3, y_pos + 3), (255, 255, 200))
-        else:
-            i.draw(randint(field_centerx - 1, field_centerx + 1), randint(y_pos - 1, y_pos + 1), (255, 255, 255))
-        y_pos += 55
-    y_pos -= 25
-    crown_rect.y = y_pos
-    screen.blit(crown, crown_rect)
-    y_pos += 65
-    txt = font.render(str(highscore), True, (255, 255, 255))
-    txt_rect = txt.get_rect()
-    txt_rect.centerx = field_centerx
-    txt_rect.y = y_pos
-    screen.blit(txt, txt_rect)
-    y_pos += 50
-    screenshots_rect.y = y_pos
-    screen.blit(current_screenshot, screenshots_rect)
+    if curr_menu == 'main':
+        screen.blit(bg, (0, 0))
+        y_pos = 20
+        for i in menu_buttons:
+            if i.is_touching_mouse():
+                i.draw(randint(field_centerx - 3, field_centerx + 3), randint(y_pos - 3, y_pos + 3), (255, 255, 200))
+            else:
+                i.draw(randint(field_centerx - 1, field_centerx + 1), randint(y_pos - 1, y_pos + 1), (255, 255, 255))
+            y_pos += 55
 
-    for event in pg.event.get():
-        if event.type == pg.QUIT:
-            tmp = open('highscore', 'w')
-            tmp.write(str(highscore))
-            tmp.close()
-            quit()
-        elif event.type == pg.MOUSEBUTTONDOWN:
-            if event.button == 1:
-                for i in buttons:
-                    if i.is_touching_mouse():
-                        if i.text == 'QUIT':
-                            quit()
-                        elif i.text == 'PLAY(single)':
-                            play()
-                            current_screenshot = choice(screenshots)
-                        elif i.text == 'PLAY(multi)':
-                            play(True)
-                            current_screenshot = choice(screenshots)
+        y_pos -= 25
+        crown_rect.y = y_pos
+        screen.blit(crown, crown_rect)
 
-    pg.display.flip()
+        y_pos += 65
+        txt = font.render(str(highscore), True, (255, 255, 255))
+        txt_rect = txt.get_rect()
+        txt_rect.centerx = field_centerx
+        txt_rect.y = y_pos
+        screen.blit(txt, txt_rect)
+
+        y_pos += 50
+        screenshots_rect.y = y_pos
+        screen.blit(current_screenshot, screenshots_rect)
+
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                safe_quit()
+            elif event.type == pg.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    for i in menu_buttons:
+                        if i.is_touching_mouse():
+                            if i.text == 'QUIT':
+                                safe_quit()
+                            elif i.text == 'PLAY(single)':
+                                play()
+                                current_screenshot = choice(screenshots)
+                            elif i.text == 'UPGRADES':
+                                curr_menu = 'upgrades'
+                            elif i.text == 'PLAY(multi)':
+                                play(True)
+                                current_screenshot = choice(screenshots)
+
+        pg.display.flip()
+    elif curr_menu == 'upgrades':
+        screen.blit(upgrades_bg, (0, 0))
+        screen.blit(coin, (10, 10))
+        screen.blit(font2.render(str(coins), True, (0, 0, 0)), (40, 20))
+        y_pos = 100
+        for i in upgrade_menu_buttons:
+            if i.is_touching_mouse():
+                i.draw(randint(field_centerx - 3, field_centerx + 3), randint(y_pos - 3, y_pos + 3), (0, 255, 0))
+                if i.text == 'SPEED':
+                    pg.draw.rect(screen, (255, 0, 0), (field_size[0] - 5 * 20 // 2, 10, 10, 5 * 20))
+                    pg.draw.rect(screen, (0, 255, 0),
+                                 (field_size[0] - 5 * 20 // 2, 5 * 20 + 10, 10, -randint(0, 5) * 20))
+                elif i.text == 'SHIELDS':
+                    pg.draw.rect(screen, (255, 0, 0), (field_size[0] - 5 * 20 // 2, 10, 10, 5 * 20))
+                    pg.draw.rect(screen, (0, 255, 0),
+                                 (field_size[0] - 5 * 20 // 2, 5 * 20 + 10, 10, -randint(0, 5) * 20))
+                elif i.text == 'LIFE':
+                    pg.draw.rect(screen, (255, 0, 0), (field_size[0] - 5 * 20 // 2, 10, 10, 5 * 20))
+                    pg.draw.rect(screen, (0, 255, 0),
+                                 (field_size[0] - 5 * 20 // 2, 5 * 20 + 10, 10, -randint(0, 5) * 20))
+            else:
+                i.draw(randint(field_centerx - 1, field_centerx + 1), randint(y_pos - 1, y_pos + 1), (255, 255, 255))
+            y_pos += 55
+
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                safe_quit()
+            elif event.type == pg.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    for i in upgrade_menu_buttons:
+                        if i.is_touching_mouse():
+                            if i.text == '<back':
+                                curr_menu = 'main'
+                            # elif i.text == 'PLAY(single)':
+                            #     pass
+                            # elif i.text == 'PLAY(multi)':
+                            #     pass
+        pg.display.flip()
