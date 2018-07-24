@@ -27,6 +27,7 @@ def play(multiplayer=False):
     global drops
     global powerups
     global score
+    player1.x = field_centerx - player1.size // 2
     player2 = Player(field_size[0] - plr_s, field_size[1] - plr_s, plr_s, 2)
     if multiplayer:
         player1.x = 0
@@ -89,16 +90,22 @@ def play(multiplayer=False):
             for i in range(player1.shields):
                 shield = pg.transform.scale(pg.image.load('resources/Shield.png'),
                                             (player1.size + i * 2, player1.size + i * 2))
-                screen.blit(shield, (player1.x - i * 2, player1.y - i * 2))
+                shield_rect = shield.get_rect()
+                shield_rect.centerx = player1.x + player1.size // 2
+                shield_rect.centery = player1.y + player1.size // 2
+                screen.blit(shield, shield_rect)
             if multiplayer:
                 player2.draw()
                 for i in range(player2.shields):
                     shield = pg.transform.scale(pg.image.load('resources/Shield.png'),
                                                 (player2.size + i * 6, player2.size + i * 6))
-                    screen.blit(shield, (player2.x - i * 3, player2.y - i * 3))
-            player1.move(move_dir1, 8)
+                    shield_rect = shield.get_rect()
+                    shield_rect.centerx = player2.x + player2.size // 2
+                    shield_rect.centery = player2.y + player2.size // 2
+                    screen.blit(shield, shield_rect)
+            player1.move(move_dir1, 6 + speed)
             if multiplayer:
-                player2.move(move_dir2, 8)
+                player2.move(move_dir2, 6 + speed)
             for i in drops:
                 if i.anim_prog > 9:
                     i.move()
@@ -218,7 +225,7 @@ class PowerUp:
                     else:
                         score += 150
             elif self.type == 'shield':
-                if other.shields < 3:
+                if other.shields < 3 + shields:
                     other.shields += 1
                 else:
                     score += 250
@@ -346,7 +353,6 @@ font2 = pg.font.SysFont('resources/Quicksand-Bold.otf', 30, False, False)
 
 FPS = 50
 plr_s = 100
-y_speed = 0
 
 tmp = open('highscore', 'r')
 highscore = int(tmp.readline())
@@ -407,11 +413,13 @@ while True:
                                 safe_quit()
                             elif i.text == 'PLAY(single)':
                                 play()
+                                coins += score // 100
                                 current_screenshot = choice(screenshots)
                             elif i.text == 'UPGRADES':
                                 curr_menu = 'upgrades'
                             elif i.text == 'PLAY(multi)':
                                 play(True)
+                                coins += score // 100
                                 current_screenshot = choice(screenshots)
 
         pg.display.flip()
@@ -426,15 +434,26 @@ while True:
                 if i.text == 'SPEED':
                     pg.draw.rect(screen, (255, 0, 0), (field_size[0] - 5 * 20 // 2, 10, 10, 5 * 20))
                     pg.draw.rect(screen, (0, 255, 0),
-                                 (field_size[0] - 5 * 20 // 2, 5 * 20 + 10, 10, -randint(0, 5) * 20))
+                                 (field_size[0] - 5 * 20 // 2, 5 * 20 + 10, 10, -speed * 20))
+                    if speed < 5:
+                        screen.blit(font2.render(str((speed + 1) * 120), True,
+                                                 (255, 0, 0) if coins < (speed + 1) * 120 else (0, 255, 0)),
+                                    (40, 60))
                 elif i.text == 'SHIELDS':
                     pg.draw.rect(screen, (255, 0, 0), (field_size[0] - 5 * 20 // 2, 10, 10, 5 * 20))
                     pg.draw.rect(screen, (0, 255, 0),
-                                 (field_size[0] - 5 * 20 // 2, 5 * 20 + 10, 10, -randint(0, 5) * 20))
+                                 (field_size[0] - 5 * 20 // 2, 5 * 20 + 10, 10, -shields * 20))
+                    if shields < 5:
+                        screen.blit(font2.render(str((shields + 1) * 250), True,
+                                                 (255, 0, 0) if coins < (shields + 1) * 250 else (0, 255, 0)),
+                                    (40, 60))
                 elif i.text == 'LIFE':
                     pg.draw.rect(screen, (255, 0, 0), (field_size[0] - 5 * 20 // 2, 10, 10, 5 * 20))
                     pg.draw.rect(screen, (0, 255, 0),
-                                 (field_size[0] - 5 * 20 // 2, 5 * 20 + 10, 10, -randint(0, 5) * 20))
+                                 (field_size[0] - 5 * 20 // 2, 5 * 20 + 10, 10, -life * 20))
+                    if life < 5:
+                        screen.blit(font2.render(str((life + 1) * 150), True,
+                                                 (255, 0, 0) if coins < (life + 1) * 150 else (0, 255, 0)), (40, 60))
             else:
                 i.draw(randint(field_centerx - 1, field_centerx + 1), randint(y_pos - 1, y_pos + 1), (255, 255, 255))
             y_pos += 55
@@ -448,8 +467,17 @@ while True:
                         if i.is_touching_mouse():
                             if i.text == '<back':
                                 curr_menu = 'main'
-                            # elif i.text == 'PLAY(single)':
-                            #     pass
-                            # elif i.text == 'PLAY(multi)':
-                            #     pass
+                            elif i.text == 'SHIELDS':
+                                if coins >= 250 * (shields + 1) and shields < 5:
+                                    coins -= 250 * (shields + 1)
+                                    shields += 1
+                            elif i.text == 'SPEED':
+                                if coins >= 120 * (speed + 1) and speed < 5:
+                                    coins -= 120 * (speed + 1)
+                                    speed += 1
+                            elif i.text == 'LIFE':
+                                if coins >= 150 * (life + 1) and life < 5:
+                                    coins -= 150 * (life + 1)
+                                    life += 1
+
         pg.display.flip()
